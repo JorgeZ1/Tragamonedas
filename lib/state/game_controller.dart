@@ -1,0 +1,547 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/db/credits_dao.dart';
+import '../data/db/stats_dao.dart';
+import '../data/light_path.dart';
+import 'game_state.dart';
+import 'spin_engine.dart';
+
+class GameController extends StateNotifier<GameState> {
+  GameController({
+    required CreditsDao creditsDao,
+    required StatsDao statsDao,
+    required SpinEngine engine,
+    required int initialCredits,
+  })  : _creditsDao = creditsDao,
+        _statsDao = statsDao,
+        _engine = engine,
+        super(GameState.initial(
+          credits: initialCredits,
+          board: engine.buildBoard(),
+        ));
+
+  final CreditsDao _creditsDao;
+  final StatsDao _statsDao;
+  final SpinEngine _engine;
+
+  Timer? _stepTimer;
+
+  @override
+  void dispose() {
+    _stepTimer?.cancel();
+    super.dispose();
+  }
+
+  // ───────────────────────────── Bets ─────────────────────────────
+
+  void placeBet(String type) {
+    if (state.isBusy || state.winnings > 0) return;
+    final current = state.selectedBets[type] ?? 0;
+    if (current >= 99) return;
+    final next = Map<String, int>.from(state.selectedBets);
+    next[type] = current + 1;
+    state = state.copyWith(selectedBets: next);
+  }
+
+  void clearBetsAndHighlights() {
+    state = state.copyWith(
+      selectedBets: const {},
+    );
+  }
+
+  // ─────────────────────────── Messages ───────────────────────────
+
+  void _showMessage(String? sym, String? title, [String? details]) {
+    state = state.copyWith(
+      messageSymbol: sym,
+      messageTitle: title,
+      messageDetails: details,
+      showLogo: false,
+    );
+  }
+
+  void _hideMessage() {
+    state = state.copyWith(
+      messageSymbol: null,
+      messageTitle: null,
+      messageDetails: null,
+      showLogo: !state.doublingActive,
+    );
+  }
+
+  // ─────────────────────────── Spin ───────────────────────────────
+
+  Future<void> playOrDouble() async {
+    if (state.isBusy) return;
+
+    if (state.canDouble) {
+      _startDoubleUp();
+      return;
+    }
+
+    // If no new bets but lastBet exists, repeat it.
+    if (state.totalSelectedBet == 0 && state.totalLastBet > 0) {
+      if (state.credits >= state.totalLastBet) {
+        state = state.copyWith(selectedBets: Map.from(state.lastBet));
+      } else {
+        return;
+      }
+    }
+    if (state.totalSelectedBet == 0) return;
+    if (state.credits < state.totalSelectedBet) return;
+
+    await _spin(free: false);
+  }
+
+  Future<void> _spin({required bool free}) async {
+    final cost = state.totalSelectedBet;
+    if (!free) {
+      state = state.copyWith(
+        lastBet: Map.from(state.selectedBets),
+        credits: state.credits - cost,
+        lastWin: 0,
+      );
+      _persistCredits();
+    }
+
+    state = state.copyWith(
+      phase: SpinPhase.spinning,
+      winnerSlots: const {},
+      eventWonSlots: const {},
+    );
+    _hideMessage();
+
+    final totalSteps = _engine.randomTotalSteps();
+    await _runLightLoop(
+      totalSteps: totalSteps,
+      onStep: (step) {
+        final slotId = kLightPath[state.currentLightIndex];
+        state = state.copyWith(activeSlotId: slotId);
+        state = state.copyWith(
+          currentLightIndex: (state.currentLightIndex + 1) % kLightPath.length,
+        );
+      },
+    );
+
+    await _resolveSpin(free: free);
+  }
+
+  Future<void> _resolveSpin({required bool free}) async {
+    final n = kLightPath.length;
+    final finalPathIndex = (state.currentLightIndex - 1 + n) % n;
+    final winningSlotId = kLightPath[finalPathIndex];
+    final winningSymbol = state.symbolsOnBoard[winningSlotId];
+    final betOnSymbol = state.selectedBets[winningSymbol.effectiveType] ?? 0;
+
+    if (winningSymbol.prize > 0 && betOnSymbol > 0) {
+      final prize = winningSymbol.prize * betOnSymbol;
+      state = state.copyWith(
+        winnings: state.winnings + prize,
+        lastWin: prize,
+        winnerSlots: {winningSlotId},
+      );
+      _showMessage(winningSymbol.display, '¡GANASTE!', '+$prize');
+
+      _statsDao.recordSpin(SpinRecord(
+        totalBet: free ? 0 : state.totalSelectedBet,
+        prize: prize,
+        wasEvent: false,
+      ));
+
+      if (free) {
+        await Future.delayed(const Duration(milliseconds: 1500));
+        await _endSpecialEvent('TIRO GRATIS TERMINADO', state.lastWin);
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 2500));
+      _afterSpinFinalize();
+      return;
+    }
+
+    if (winningSymbol.isOnceMore && state.phase != SpinPhase.event) {
+      await _triggerSpecialEvent();
+      return;
+    }
+
+    _showMessage(winningSymbol.display, 'NO HUBO SUERTE');
+    _statsDao.recordSpin(SpinRecord(
+      totalBet: free ? 0 : state.totalSelectedBet,
+      prize: 0,
+      wasEvent: false,
+    ));
+    if (free) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      await _endSpecialEvent('TIRO GRATIS TERMINADO', 0);
+      return;
+    }
+    await Future.delayed(const Duration(milliseconds: 2500));
+    _afterSpinFinalize();
+  }
+
+  void _afterSpinFinalize() {
+    final keepBets = state.winnings > 0;
+    state = state.copyWith(
+      phase: SpinPhase.idle,
+      activeSlotId: null,
+      winnerSlots: const {},
+      selectedBets: keepBets ? state.selectedBets : const {},
+    );
+    _hideMessage();
+  }
+
+  // ──────────────────────── Special Events ────────────────────────
+
+  Future<void> _triggerSpecialEvent() async {
+    if (state.totalSelectedBet == 0) {
+      _showMessage('🤔', '¡HAZ UNA APUESTA!', 'PARA JUGAR EL EVENTO');
+      await Future.delayed(const Duration(seconds: 2));
+      state = state.copyWith(phase: SpinPhase.idle, activeSlotId: null);
+      _hideMessage();
+      return;
+    }
+
+    final deactivated = <int>{};
+    for (var i = 0; i < state.symbolsOnBoard.length; i++) {
+      if (state.symbolsOnBoard[i].isOnceMore) deactivated.add(i);
+    }
+
+    state = state.copyWith(
+      phase: SpinPhase.event,
+      deactivatedSlots: deactivated,
+      winnerSlots: const {},
+      eventWonSlots: const {},
+    );
+
+    final chosen = _engine.pickSpecialEvent();
+    switch (chosen) {
+      case 'snake':
+        await _snakeEvent();
+        break;
+      case 'three_prizes':
+        await _threePrizesEvent();
+        break;
+      case 'free_spin':
+        await _freeSpinEvent();
+        break;
+    }
+  }
+
+  Future<void> _snakeEvent() async {
+    _showMessage('🐍', '¡CULEBRITA!', '¡AHÍ VIENE!');
+    await Future.delayed(const Duration(seconds: 2));
+
+    final totalSteps = _engine.randomSnakeSteps();
+    final n = kLightPath.length;
+
+    await _runLightLoop(
+      totalSteps: totalSteps,
+      initialSpeed: 50,
+      slowdownAdditive: true,
+      onStep: (step) {
+        final head = state.currentLightIndex;
+        final parts = {
+          kLightPath[head],
+          kLightPath[(head - 1 + n) % n],
+          kLightPath[(head - 2 + n) % n],
+        };
+        state = state.copyWith(
+          activeSlotId: kLightPath[head],
+          activeSnakeSlots: parts,
+        );
+        state = state.copyWith(
+          currentLightIndex: (state.currentLightIndex + 1) % n,
+        );
+      },
+    );
+
+    final finalHeadIndex = (state.currentLightIndex - 1 + n) % n;
+    final partsIndices = _engine.snakePartsFromHead(finalHeadIndex);
+
+    int totalSnakePrize = 0;
+    final winners = <int>{};
+    for (final partIndex in partsIndices) {
+      final slotId = kLightPath[partIndex];
+      final symbol = state.symbolsOnBoard[slotId];
+      winners.add(slotId);
+      final bet = state.selectedBets[symbol.effectiveType] ?? 0;
+      if (!symbol.isOnceMore && bet > 0) {
+        totalSnakePrize += symbol.prize * bet;
+      }
+    }
+
+    state = state.copyWith(
+      winnerSlots: winners,
+      eventWonSlots: winners,
+      activeSnakeSlots: const {},
+      winnings: state.winnings + totalSnakePrize,
+    );
+
+    _statsDao.recordSpin(SpinRecord(
+      totalBet: state.totalSelectedBet,
+      prize: totalSnakePrize,
+      wasEvent: true,
+      eventType: 'snake',
+    ));
+
+    await _endSpecialEvent('CULEBRITA TERMINADA', totalSnakePrize);
+  }
+
+  Future<void> _threePrizesEvent() async {
+    _showMessage('🌟', '¡RULETA LOCA!', '3 PREMIOS AL AZAR');
+    await Future.delayed(const Duration(seconds: 2));
+
+    final targets = _engine.pickThreePrizeTargets(
+      board: state.symbolsOnBoard,
+      selectedBets: state.selectedBets,
+    );
+
+    if (targets.isEmpty) {
+      await _endSpecialEvent('SIN PREMIOS APOSTADOS', 0);
+      _statsDao.recordSpin(SpinRecord(
+        totalBet: state.totalSelectedBet,
+        prize: 0,
+        wasEvent: true,
+        eventType: 'three_prizes',
+      ));
+      return;
+    }
+
+    int totalEventWinnings = 0;
+    final winners = <int>{};
+
+    for (final targetSlotId in targets) {
+      final targetLightIndex = kLightPath.indexOf(targetSlotId);
+      final stepsTotal =
+          _engine.stepsToTarget(state.currentLightIndex, targetLightIndex);
+
+      await _runLightLoop(
+        totalSteps: stepsTotal,
+        onStep: (step) {
+          state = state.copyWith(
+              activeSlotId: kLightPath[state.currentLightIndex]);
+          state = state.copyWith(
+            currentLightIndex:
+                (state.currentLightIndex + 1) % kLightPath.length,
+          );
+        },
+      );
+
+      final symbol = state.symbolsOnBoard[targetSlotId];
+      final bet = state.selectedBets[symbol.effectiveType] ?? 0;
+      final prize = symbol.prize * bet;
+      totalEventWinnings += prize;
+      winners.add(targetSlotId);
+
+      state = state.copyWith(
+        winnings: state.winnings + prize,
+        winnerSlots: {targetSlotId},
+        eventWonSlots: winners,
+      );
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
+
+    _statsDao.recordSpin(SpinRecord(
+      totalBet: state.totalSelectedBet,
+      prize: totalEventWinnings,
+      wasEvent: true,
+      eventType: 'three_prizes',
+    ));
+
+    await _endSpecialEvent('RULETA TERMINADA', totalEventWinnings);
+  }
+
+  Future<void> _freeSpinEvent() async {
+    _showMessage('🔄', '¡TIRO GRATIS!', null);
+    await Future.delayed(const Duration(seconds: 2));
+    await _spin(free: true);
+  }
+
+  Future<void> _endSpecialEvent(String message, int eventWinnings) async {
+    _showMessage('💰', message, '+$eventWinnings');
+    await Future.delayed(const Duration(milliseconds: 2500));
+
+    state = state.copyWith(
+      phase: SpinPhase.idle,
+      activeSlotId: null,
+      activeSnakeSlots: const {},
+      winnerSlots: const {},
+      eventWonSlots: const {},
+      deactivatedSlots: const {},
+      lastWin: eventWinnings,
+      lastBet: const {},
+      selectedBets: state.winnings > 0 ? state.selectedBets : const {},
+    );
+    _hideMessage();
+  }
+
+  // ─────────────────────── Light loop helper ──────────────────────
+
+  Future<void> _runLightLoop({
+    required int totalSteps,
+    required void Function(int step) onStep,
+    int initialSpeed = 120,
+    bool slowdownAdditive = false,
+  }) {
+    final completer = Completer<void>();
+    var step = 0;
+
+    void schedule() {
+      final delay = slowdownAdditive
+          ? _snakeDelay(step: step, totalSteps: totalSteps,
+              baseSpeed: initialSpeed)
+          : SpinEngine.stepDelayMs(
+              currentStep: step,
+              totalSteps: totalSteps,
+              initialSpeed: initialSpeed,
+            );
+
+      _stepTimer = Timer(Duration(milliseconds: delay), () {
+        onStep(step);
+        step++;
+        if (step < totalSteps) {
+          schedule();
+        } else {
+          completer.complete();
+        }
+      });
+    }
+
+    schedule();
+    return completer.future;
+  }
+
+  int _snakeDelay({
+    required int step,
+    required int totalSteps,
+    required int baseSpeed,
+  }) {
+    var speed = baseSpeed;
+    if (step > totalSteps - 15) speed += 15 * (step - (totalSteps - 15));
+    return speed.clamp(20, 600);
+  }
+
+  // ──────────────────────── Double Up ─────────────────────────────
+
+  void _startDoubleUp() {
+    state = state.copyWith(
+      doublingActive: true,
+      phase: SpinPhase.doubling,
+      doubleHighlight: null,
+      doubleWinner: null,
+      doubleResult: DoubleResult.none,
+      showLogo: false,
+    );
+  }
+
+  Future<void> chooseDouble(String choice) async {
+    if (!state.doublingActive) return;
+    if (state.doubleResult != DoubleResult.none) return;
+    if (state.doubleWinner != null) return; // animation in progress
+
+    final steps = _engine.randomDoubleSteps();
+    var current = DateTime.now().microsecondsSinceEpoch.isEven ? 'left' : 'right';
+    var currentStep = 0;
+    var speed = 50;
+
+    final completer = Completer<void>();
+
+    void run() {
+      _stepTimer = Timer(Duration(milliseconds: speed), () {
+        state = state.copyWith(doubleHighlight: current);
+        current = current == 'left' ? 'right' : 'left';
+        currentStep++;
+        if (currentStep > steps - 5) speed += 30;
+        if (currentStep < steps) {
+          run();
+        } else {
+          completer.complete();
+        }
+      });
+    }
+
+    run();
+    await completer.future;
+
+    final winner = _engine.pickDoubleWinner();
+    state = state.copyWith(
+      doubleWinner: winner,
+      doubleHighlight: winner,
+      doubleResult: choice == winner ? DoubleResult.won : DoubleResult.lost,
+    );
+
+    if (choice == winner) {
+      state = state.copyWith(winnings: state.winnings * 2);
+    } else {
+      state = state.copyWith(winnings: 0);
+    }
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    state = state.copyWith(
+      doublingActive: false,
+      phase: SpinPhase.idle,
+      doubleHighlight: null,
+      doubleWinner: null,
+      doubleResult: DoubleResult.none,
+      lastWin: 0,
+      showLogo: true,
+      selectedBets: const {},
+      lastBet: const {},
+    );
+  }
+
+  void cancelDoubleAndCashout() {
+    if (!state.doublingActive) return;
+    state = state.copyWith(
+      doublingActive: false,
+      phase: SpinPhase.idle,
+      doubleHighlight: null,
+      doubleWinner: null,
+      doubleResult: DoubleResult.none,
+      showLogo: true,
+    );
+    cashout();
+  }
+
+  // ───────────────────────── Cashout ──────────────────────────────
+
+  void cashout() {
+    if (state.winnings == 0 || state.isBusy) return;
+    final newCredits = state.credits + state.winnings;
+    state = state.copyWith(
+      credits: newCredits,
+      winnings: 0,
+      lastWin: 0,
+      flashCredits: true,
+      selectedBets: const {},
+      lastBet: const {},
+    );
+    _persistCredits();
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      state = state.copyWith(flashCredits: false);
+    });
+  }
+
+  // ───────────────────────── Persistence ──────────────────────────
+
+  Future<void> _persistCredits() async {
+    await _creditsDao.write(state.credits);
+  }
+
+  Future<void> resetWallet({int credits = 100}) async {
+    await _creditsDao.reset(credits: credits);
+    await _statsDao.reset();
+    state = GameState.initial(
+      credits: credits,
+      board: _engine.buildBoard(),
+    );
+  }
+
+  void rebuildBoard() {
+    state = state.copyWith(symbolsOnBoard: _engine.buildBoard());
+  }
+}
