@@ -126,35 +126,13 @@ class _SymbolIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (symbol.type == 'bar' || symbol.type == 'bar1000') {
-      return FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text('BAR', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFFDC2626))),
-            Text('BAR', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFFDC2626))),
-            Text('BAR', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFFDC2626))),
-          ],
-        ),
-      );
-    }
-    if (symbol.type == 'seven') {
-      return FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          '7',
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFFDC2626),
-          ),
-        ),
-      );
-    }
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(symbol.display, style: const TextStyle(fontSize: 22)),
+    final iconName = symbol.baseType ?? symbol.type;
+    return Padding(
+      padding: const EdgeInsets.all(2.0),
+      child: Image.asset(
+        'assets/icons/$iconName.png',
+        fit: BoxFit.contain,
+      ),
     );
   }
 }

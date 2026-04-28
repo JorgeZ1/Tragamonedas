@@ -139,25 +139,12 @@ class _Icon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (symbol.type == 'bar') {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-        decoration: BoxDecoration(
-          color: SymbolColors.barBg,
-          borderRadius: BorderRadius.circular(3),
-        ),
-        child: Text(
-          'BAR',
-          style: SlotTheme.gameFont(size: 10, color: Colors.white),
-        ),
-      );
-    }
-    if (symbol.type == 'seven') {
-      return Text(
-        '7',
-        style: SlotTheme.gameFont(size: 18, color: SymbolColors.seven),
-      );
-    }
-    return Text(symbol.display, style: const TextStyle(fontSize: 20));
+    final iconName = symbol.baseType ?? symbol.type;
+    return Image.asset(
+      'assets/icons/$iconName.png',
+      width: 24,
+      height: 24,
+      fit: BoxFit.contain,
+    );
   }
 }

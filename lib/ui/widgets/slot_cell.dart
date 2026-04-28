@@ -47,7 +47,7 @@ class _SlotCellState extends State<SlotCell>
     } else if (isActive) {
       borderColor = const Color(0xFFFBBF24);
     } else {
-      borderColor = const Color(0xFFE5E7EB); // very light grey, sharp seam
+      borderColor = Colors.black; // very sharp black line
     }
 
     // Background
@@ -120,15 +120,24 @@ class _SymbolDisplay extends StatelessWidget {
       );
     }
 
-    // BAR (full / mini / bar1000)
-    if (s.type == 'bar' || s.type == 'mini_bar' || s.type == 'bar1000') {
-      final isFullBar = s.type == 'bar' || s.type == 'bar1000';
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _barStack(base, isFullBar),
-          if (isFullBar)
+    final iconName = s.baseType ?? s.type;
+    final scale = s.isMini ? 0.6 : 0.82;
+    
+    Widget icon = Image.asset(
+      'assets/icons/$iconName.png',
+      width: base * scale,
+      height: base * scale,
+      fit: BoxFit.contain,
+    );
+
+    if (s.type == 'bar' || s.type == 'bar1000') {
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
             Text(
               '${s.prize}',
               style: TextStyle(
@@ -137,51 +146,11 @@ class _SymbolDisplay extends StatelessWidget {
                 color: const Color(0xFFDC2626),
               ),
             ),
-        ],
-      );
-    }
-
-    // 7
-    if (s.type == 'seven' || s.type == 'mini_seven') {
-      final scale = s.isMini ? 0.6 : 0.85;
-      return Text(
-        '7',
-        style: TextStyle(
-          fontSize: base * scale,
-          fontWeight: FontWeight.w900,
-          color: const Color(0xFFDC2626),
-          shadows: const [Shadow(color: Color(0xFF7F1D1D), offset: Offset(1, 1))],
+          ],
         ),
       );
     }
 
-    // Emoji fruits
-    final scale = s.isMini ? 0.6 : 0.82;
-    return Text(s.display, style: TextStyle(fontSize: base * scale));
-  }
-
-  static Widget _barStack(double base, bool full) {
-    final lineStyle = TextStyle(
-      fontSize: base * (full ? 0.18 : 0.22),
-      fontWeight: FontWeight.w900,
-      color: Colors.white,
-    );
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: base * 0.06, vertical: base * 0.02),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDC2626),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: full
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('BAR', style: lineStyle),
-                Text('BAR', style: lineStyle),
-                Text('BAR', style: lineStyle),
-              ],
-            )
-          : Text('BAR', style: lineStyle),
-    );
+    return icon;
   }
 }
