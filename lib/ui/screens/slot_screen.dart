@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/providers.dart';
-import '../../theme/slot_theme.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/bet_grid.dart';
 import '../widgets/header_panel.dart';
@@ -15,110 +14,63 @@ class SlotScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(gameControllerProvider);
+    ref.watch(gameControllerProvider); // keep reactive
 
     return Scaffold(
-      backgroundColor: SlotTheme.bgOuter,
+      backgroundColor: const Color(0xFF3DA5C9),
       appBar: AppBar(
-        backgroundColor: SlotTheme.bgOuter,
+        backgroundColor: const Color(0xFF1F6F8B),
         elevation: 0,
         centerTitle: true,
-        title: Text(
+        title: const Text(
           'TRAGAMONEDAS',
-          style: SlotTheme.gameFont(size: 12, color: SlotTheme.goldLight),
+          style: TextStyle(
+            color: Color(0xFFFBBF24),
+            fontWeight: FontWeight.w900,
+            fontSize: 14,
+            letterSpacing: 1.5,
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const StatsScreen()),
-              );
-            },
+            icon: const Icon(Icons.bar_chart, color: Color(0xFFFBBF24)),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StatsScreen()),
+            ),
           ),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Reward button
-                    const RewardButton(),
-                    const SizedBox(height: 4),
-                    // Header
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: SlotTheme.frameDark,
-                        border:
-                            Border.all(color: SlotTheme.goldLight, width: 1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const HeaderPanel(),
-                    ),
-                    const SizedBox(height: 4),
-                    // Board
-                    Container(
-                      decoration: BoxDecoration(
-                        color: SlotTheme.frameLight,
-                        border:
-                            Border.all(color: SlotTheme.goldLight, width: 1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.all(3),
-                      height: 280,
-                      child: const SlotBoard(),
-                    ),
-                    const SizedBox(height: 4),
-                    // Bets
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: SlotTheme.frameDark,
-                        border:
-                            Border.all(color: SlotTheme.goldLight, width: 1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const BetGrid(),
-                    ),
-                    const SizedBox(height: 4),
-                    // Actions
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: SlotTheme.frameDark,
-                        border:
-                            Border.all(color: SlotTheme.goldLight, width: 1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const ActionButtons(),
-                    ),
-                    const SizedBox(height: 4),
-                    // Debug info
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Estado: ${s.phase.name} | Luz: ${s.currentLightIndex} | Apuestas: ${s.selectedBets.length}',
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 10),
-                          ),
-                        ],
-                      ),
-                    ),
+                  children: const [
+
+                    // ── Header (Mexican-arcade style) ──────────────────
+                    HeaderPanel(),
+                    SizedBox(height: 6),
+
+                    // ── Reward (kept as a slim banner) ─────────────────
+                    RewardButton(),
+                    SizedBox(height: 6),
+
+                    // ── Main board (7×7) ───────────────────────────────
+                    SlotBoard(),
+                    SizedBox(height: 8),
+
+                    // ── Action buttons: COLLECT | ← | → | START ────────
+                    SizedBox(height: 56, child: ActionButtons()),
+                    SizedBox(height: 6),
+
+                    // ── Bet panel ──────────────────────────────────────
+                    BetGrid(),
+
+                    SizedBox(height: 8),
                   ],
                 ),
               ),

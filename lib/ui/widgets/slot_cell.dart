@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../data/symbols.dart';
-import '../../theme/slot_theme.dart';
-import '../../util/glow_decoration.dart';
 
 enum SlotVisualState { idle, active, winner, eventWon, deactivated }
 
@@ -10,11 +8,7 @@ class SlotCell extends StatefulWidget {
   final GameSymbol symbol;
   final SlotVisualState visual;
 
-  const SlotCell({
-    super.key,
-    required this.symbol,
-    required this.visual,
-  });
+  const SlotCell({super.key, required this.symbol, required this.visual});
 
   @override
   State<SlotCell> createState() => _SlotCellState();
@@ -41,50 +35,58 @@ class _SlotCellState extends State<SlotCell>
 
   @override
   Widget build(BuildContext context) {
-    BoxDecoration decoration;
-    double scale = 1.0;
-    double opacity = 1.0;
+    final isWinner = widget.visual == SlotVisualState.winner;
+    final isActive = widget.visual == SlotVisualState.active;
+    final isDeactivated = widget.visual == SlotVisualState.deactivated;
 
-    switch (widget.visual) {
-      case SlotVisualState.idle:
-        decoration = GlowDecorations.slotIdle;
-        break;
-      case SlotVisualState.active:
-        decoration = GlowDecorations.slotActive;
-        scale = 1.05;
-        break;
-      case SlotVisualState.winner:
-        decoration = GlowDecorations.slotWinner(pulse: _pulse.value);
-        scale = 1.1 + 0.1 * _pulse.value;
-        break;
-      case SlotVisualState.eventWon:
-        decoration = GlowDecorations.slotEventWon;
-        opacity = 0.9;
-        break;
-      case SlotVisualState.deactivated:
-        decoration = GlowDecorations.slotDeactivated;
-        opacity = 0.4;
-        break;
+    // Border color
+    Color borderColor;
+    if (isWinner) {
+      borderColor = Color.lerp(
+          const Color(0xFFFBBF24), const Color(0xFFEF4444), _pulse.value)!;
+    } else if (isActive) {
+      borderColor = const Color(0xFFFBBF24);
+    } else {
+      borderColor = const Color(0xFFE5E7EB); // very light grey, sharp seam
     }
 
-    final isWinner = widget.visual == SlotVisualState.winner;
+    // Background
+    Color bgColor;
+    if (isDeactivated) {
+      bgColor = const Color(0xFF6B7280);
+    } else if (isWinner) {
+      bgColor = Color.lerp(Colors.white, const Color(0xFFFEF9C3), _pulse.value)!;
+    } else if (widget.visual == SlotVisualState.eventWon) {
+      bgColor = const Color(0xFFD1FAE5);
+    } else {
+      bgColor = Colors.white;
+    }
 
     Widget cell = AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      decoration: decoration,
+      duration: const Duration(milliseconds: 100),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: borderColor, width: isActive || isWinner ? 2 : 1),
+        boxShadow: isActive
+            ? [BoxShadow(color: const Color(0xFFFBBF24).withValues(alpha: 0.6), blurRadius: 6)]
+            : isWinner
+                ? [BoxShadow(color: const Color(0xFFFBBF24).withValues(alpha: 0.8 * _pulse.value), blurRadius: 8, spreadRadius: 1)]
+                : null,
+      ),
       alignment: Alignment.center,
       padding: const EdgeInsets.all(2),
-      child: _SymbolDisplay(symbol: widget.symbol),
+      child: Opacity(
+        opacity: isDeactivated ? 0.4 : 1.0,
+        child: _SymbolDisplay(symbol: widget.symbol),
+      ),
     );
 
-    cell = Transform.scale(scale: scale, child: cell);
-    if (opacity < 1.0) {
-      cell = Opacity(opacity: opacity, child: cell);
+    if (isWinner) {
+      cell = AnimatedBuilder(animation: _pulse, builder: (_, __) => cell);
     }
 
-    return isWinner
-        ? AnimatedBuilder(animation: _pulse, builder: (_, __) => cell)
-        : cell;
+    return cell;
   }
 }
 
@@ -94,67 +96,92 @@ class _SymbolDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final base = constraints.biggest.shortestSide;
-        return _renderSymbol(symbol, base);
-      },
-    );
+    return LayoutBuilder(builder: (context, c) {
+      final base = c.biggest.shortestSide;
+      return _render(symbol, base);
+    });
   }
 
-  static Widget _renderSymbol(GameSymbol s, double base) {
-    final scale = s.isMini ? 0.55 : 0.85;
+  static Widget _render(GameSymbol s, double base) {
+    // ONCE MORE
     if (s.isOnceMore) {
       return FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
-          'ONCE\nMORE',
+          'once\nmore',
           textAlign: TextAlign.center,
-          style: SlotTheme.gameFont(
-            size: base * 0.18,
-            color: SymbolColors.onceMore,
+          style: TextStyle(
+            fontSize: base * 0.22,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF1D4ED8),
+            height: 1.1,
           ),
         ),
       );
     }
 
-    if (s.type == 'bar' || s.type == 'mini_bar') {
-      return Container(
-        padding: EdgeInsets.symmetric(
-            horizontal: base * 0.06, vertical: base * 0.03),
-        decoration: BoxDecoration(
-          color: SymbolColors.barBg,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          'BAR',
-          style: SlotTheme.gameFont(
-            size: base * scale * 0.4,
-            color: Colors.white,
-          ),
-        ),
+    // BAR (full / mini / bar1000)
+    if (s.type == 'bar' || s.type == 'mini_bar' || s.type == 'bar1000') {
+      final isFullBar = s.type == 'bar' || s.type == 'bar1000';
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _barStack(base, isFullBar),
+          if (isFullBar)
+            Text(
+              '${s.prize}',
+              style: TextStyle(
+                fontSize: base * 0.18,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFFDC2626),
+              ),
+            ),
+        ],
       );
     }
 
+    // 7
     if (s.type == 'seven' || s.type == 'mini_seven') {
+      final scale = s.isMini ? 0.6 : 0.85;
       return Text(
         '7',
-        style: SlotTheme.gameFont(
-          size: base * scale,
-          color: SymbolColors.seven,
-          shadows: [
-            const Shadow(
-                color: Color(0xFFC53030), offset: Offset(1, 1)),
-            const Shadow(
-                color: Color(0xFF9B2C2C), offset: Offset(2, 2)),
-          ],
+        style: TextStyle(
+          fontSize: base * scale,
+          fontWeight: FontWeight.w900,
+          color: const Color(0xFFDC2626),
+          shadows: const [Shadow(color: Color(0xFF7F1D1D), offset: Offset(1, 1))],
         ),
       );
     }
 
-    return Text(
-      s.display,
-      style: TextStyle(fontSize: base * scale),
+    // Emoji fruits
+    final scale = s.isMini ? 0.6 : 0.82;
+    return Text(s.display, style: TextStyle(fontSize: base * scale));
+  }
+
+  static Widget _barStack(double base, bool full) {
+    final lineStyle = TextStyle(
+      fontSize: base * (full ? 0.18 : 0.22),
+      fontWeight: FontWeight.w900,
+      color: Colors.white,
+    );
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: base * 0.06, vertical: base * 0.02),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDC2626),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: full
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('BAR', style: lineStyle),
+                Text('BAR', style: lineStyle),
+                Text('BAR', style: lineStyle),
+              ],
+            )
+          : Text('BAR', style: lineStyle),
     );
   }
 }

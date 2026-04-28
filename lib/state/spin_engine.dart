@@ -7,36 +7,36 @@ class SpinEngine {
   final Random _rng;
   SpinEngine([Random? rng]) : _rng = rng ?? Random();
 
-  /// Build the 20-slot board. Mirrors HTML setupBoard():
-  ///   - slot 3 fixed = bar
-  ///   - slots 8 and 18 fixed = once_more
-  ///   - rest filled by shuffled pool of fruit + mini variants
+  /// Build the 24-slot board with the exact symbol order from the
+  /// "máquina mexicana" reference image (clockwise from top-left).
   List<GameSymbol> buildBoard() {
-    final board = List<GameSymbol?>.filled(20, null);
-    board[3] = kSymbols['bar']!;
-    board[8] = kSymbols['once_more']!;
-    board[18] = kSymbols['once_more']!;
-
-    final pool = <GameSymbol>[
-      kSymbols['seven']!, kSymbols['mini_seven']!,
-      kSymbols['mini_bar']!,
-      kSymbols['star']!, kSymbols['mini_star']!,
-      kSymbols['bell']!, kSymbols['mini_bell']!,
-      kSymbols['watermelon']!, kSymbols['mini_watermelon']!,
-      kSymbols['orange']!, kSymbols['mini_orange']!,
-      kSymbols['lemon']!, kSymbols['mini_lemon']!,
-      kSymbols['apple']!, kSymbols['mini_apple']!,
-      kSymbols['cherry']!, kSymbols['mini_cherry']!,
-    ]..shuffle(_rng);
-
-    var poolIndex = 0;
-    for (var i = 0; i < board.length; i++) {
-      if (board[i] == null) {
-        board[i] = pool[poolIndex];
-        poolIndex = (poolIndex + 1) % pool.length;
-      }
-    }
-    return board.cast<GameSymbol>();
+    const order = <String>[
+      'orange',     //  0  top-left
+      'bell',       //  1
+      'bar',        //  2  BAR-500
+      'bar1000',    //  3  BAR-1000
+      'apple',      //  4
+      'cherry',     //  5
+      'plum',       //  6  top-right
+      'watermelon', //  7
+      'cherry',     //  8
+      'once_more',  //  9  right centre
+      'apple',      // 10
+      'cherry',     // 11
+      'orange',     // 12  bottom-right
+      'bell',       // 13
+      'cherry',     // 14
+      'seven',      // 15
+      'apple',      // 16
+      'cherry',     // 17
+      'plum',       // 18  bottom-left
+      'star',       // 19
+      'cherry',     // 20
+      'once_more',  // 21  left centre
+      'apple',      // 22
+      'cherry',     // 23
+    ];
+    return [for (final t in order) kSymbols[t]!];
   }
 
   /// Compute delay (ms) for the next light step, replicating the HTML curve:
