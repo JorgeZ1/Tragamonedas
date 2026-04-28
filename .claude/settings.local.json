@@ -9,7 +9,8 @@
       "Bash(flutter clean *)",
       "Bash(flutter pub *)",
       "Bash(flutter devices *)",
-      "Bash(flutter doctor *)"
+      "Bash(flutter doctor *)",
+      "Bash(git checkout *)"
     ]
   }
 }

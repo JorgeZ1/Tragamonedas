@@ -6,6 +6,7 @@ import '../../theme/slot_theme.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/bet_grid.dart';
 import '../widgets/header_panel.dart';
+import '../widgets/reward_button.dart';
 import '../widgets/slot_board.dart';
 import 'stats_screen.dart';
 
@@ -47,6 +48,9 @@ class SlotScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Reward button
+                    const RewardButton(),
+                    const SizedBox(height: 4),
                     // Header
                     Container(
                       padding: const EdgeInsets.all(6),

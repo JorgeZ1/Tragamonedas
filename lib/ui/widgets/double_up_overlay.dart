@@ -50,29 +50,10 @@ class DoubleUpOverlay extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             _statusText(s),
             style: SlotTheme.bodyFont(size: 12, color: Colors.white),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: s.doubleResult == DoubleResult.none
-                ? () => ctrl.cancelDoubleAndCashout()
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: SlotTheme.cashoutYellow,
-              foregroundColor: const Color(0xFF1F2937),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: FittedBox(
-              child: Text('COBRAR GANANCIA',
-                  style: SlotTheme.gameFont(
-                      size: 11, color: const Color(0xFF1F2937))),
-            ),
           ),
         ],
       ),

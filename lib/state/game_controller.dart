@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db/credits_dao.dart';
 import '../data/db/stats_dao.dart';
 import '../data/light_path.dart';
+import '../util/sound_service.dart';
 import 'game_state.dart';
 import 'spin_engine.dart';
 
@@ -34,15 +35,64 @@ class GameController extends StateNotifier<GameState> {
     super.dispose();
   }
 
+  // ───────────────────────── Reward ───────────────────────────────
+
+  static const int _rewardAmount = 100;
+  static const Duration _rewardCooldown = Duration(minutes: 5);
+
+  /// Returns true if the reward button is currently available.
+  bool get canClaimReward {
+    final last = state.lastRewardClaimed;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= _rewardCooldown;
+  }
+
+  /// Returns how many seconds remain until the reward is available again.
+  int get rewardCooldownSeconds {
+    final last = state.lastRewardClaimed;
+    if (last == null) return 0;
+    final elapsed = DateTime.now().difference(last);
+    final remaining = _rewardCooldown - elapsed;
+    return remaining.inSeconds.clamp(0, _rewardCooldown.inSeconds);
+  }
+
+  void claimReward() {
+    if (!canClaimReward) return;
+    final newCredits = state.credits + _rewardAmount;
+    soundService.play(SoundEffect.cashout);
+    state = state.copyWith(
+      credits: newCredits,
+      lastRewardClaimed: DateTime.now(),
+      flashCredits: true,
+    );
+    _persistCredits();
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      state = state.copyWith(flashCredits: false);
+    });
+  }
+
   // ───────────────────────────── Bets ─────────────────────────────
+
+  static const int _maxBetPerSymbol = 10;
 
   void placeBet(String type) {
     if (state.isBusy || state.winnings > 0) return;
     final current = state.selectedBets[type] ?? 0;
-    if (current >= 99) return;
+    // Límite máximo por símbolo
+    if (current >= _maxBetPerSymbol) {
+      soundService.play(SoundEffect.betLimit);
+      return;
+    }
+    // Validar crédito disponible antes de aceptar la apuesta
+    if (state.credits <= state.totalSelectedBet) {
+      soundService.play(SoundEffect.betLimit);
+      return;
+    }
     final next = Map<String, int>.from(state.selectedBets);
     next[type] = current + 1;
     state = state.copyWith(selectedBets: next);
+    soundService.play(SoundEffect.bet);
   }
 
   void clearBetsAndHighlights() {
@@ -117,6 +167,7 @@ class GameController extends StateNotifier<GameState> {
     await _runLightLoop(
       totalSteps: totalSteps,
       onStep: (step) {
+        soundService.play(SoundEffect.spin);
         final slotId = kLightPath[state.currentLightIndex];
         state = state.copyWith(activeSlotId: slotId);
         state = state.copyWith(
@@ -143,6 +194,8 @@ class GameController extends StateNotifier<GameState> {
         winnerSlots: {winningSlotId},
       );
       _showMessage(winningSymbol.display, '¡GANASTE!', '+$prize');
+      soundService.play(
+          winningSymbol.prize >= 40 ? SoundEffect.bigWin : SoundEffect.win);
 
       _statsDao.recordSpin(SpinRecord(
         totalBet: free ? 0 : state.totalSelectedBet,
@@ -167,6 +220,7 @@ class GameController extends StateNotifier<GameState> {
     }
 
     _showMessage(winningSymbol.display, 'NO HUBO SUERTE');
+    soundService.play(SoundEffect.lose);
     _statsDao.recordSpin(SpinRecord(
       totalBet: free ? 0 : state.totalSelectedBet,
       prize: 0,
@@ -214,6 +268,7 @@ class GameController extends StateNotifier<GameState> {
       winnerSlots: const {},
       eventWonSlots: const {},
     );
+    soundService.play(SoundEffect.special);
 
     final chosen = _engine.pickSpecialEvent();
     switch (chosen) {
@@ -272,6 +327,7 @@ class GameController extends StateNotifier<GameState> {
       }
     }
 
+    if (totalSnakePrize > 0) soundService.play(SoundEffect.bigWin);
     state = state.copyWith(
       winnerSlots: winners,
       eventWonSlots: winners,
@@ -474,8 +530,10 @@ class GameController extends StateNotifier<GameState> {
 
     if (choice == winner) {
       state = state.copyWith(winnings: state.winnings * 2);
+      soundService.play(SoundEffect.doubleWin);
     } else {
       state = state.copyWith(winnings: 0);
+      soundService.play(SoundEffect.doubleLose);
     }
 
     await Future.delayed(const Duration(seconds: 2));
@@ -511,6 +569,7 @@ class GameController extends StateNotifier<GameState> {
   void cashout() {
     if (state.winnings == 0 || state.isBusy) return;
     final newCredits = state.credits + state.winnings;
+    soundService.play(SoundEffect.cashout);
     state = state.copyWith(
       credits: newCredits,
       winnings: 0,

@@ -31,6 +31,9 @@ class GameState {
 
   final bool flashCredits;
 
+  // Reward cooldown
+  final DateTime? lastRewardClaimed;
+
   const GameState({
     required this.credits,
     required this.winnings,
@@ -54,6 +57,7 @@ class GameState {
     required this.doubleWinner,
     required this.doubleResult,
     required this.flashCredits,
+    required this.lastRewardClaimed,
   });
 
   factory GameState.initial({
@@ -83,6 +87,7 @@ class GameState {
       doubleWinner: null,
       doubleResult: DoubleResult.none,
       flashCredits: false,
+      lastRewardClaimed: null,
     );
   }
 
@@ -122,6 +127,7 @@ class GameState {
     Object? doubleWinner = _sentinel,
     DoubleResult? doubleResult,
     bool? flashCredits,
+    Object? lastRewardClaimed = _sentinel,
   }) {
     return GameState(
       credits: credits ?? this.credits,
@@ -158,6 +164,9 @@ class GameState {
           : doubleWinner as String?,
       doubleResult: doubleResult ?? this.doubleResult,
       flashCredits: flashCredits ?? this.flashCredits,
+      lastRewardClaimed: identical(lastRewardClaimed, _sentinel)
+          ? this.lastRewardClaimed
+          : lastRewardClaimed as DateTime?,
     );
   }
 }

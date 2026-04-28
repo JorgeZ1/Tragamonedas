@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../state/game_state.dart';
 import '../../state/providers.dart';
 import '../../theme/slot_theme.dart';
 
@@ -18,7 +19,14 @@ class ActionButtons extends ConsumerWidget {
         s.credits >= s.totalLastBet;
     final isDouble = s.canDouble;
     final playEnabled = !s.isBusy && (isDouble || canPlay || canRebet);
-    final cashoutEnabled = !s.isBusy && s.winnings > 0;
+
+    // Cuando estamos doblando: COBRAR está activo solo antes de elegir.
+    // En caso normal: solo si hay ganancias y no estamos ocupados.
+    final cashoutEnabled = s.doublingActive
+        ? s.doubleResult == DoubleResult.none
+        : (!s.isBusy && s.winnings > 0);
+    final VoidCallback cashoutAction =
+        s.doublingActive ? ctrl.cancelDoubleAndCashout : ctrl.cashout;
 
     String label;
     Color color;
@@ -37,31 +45,35 @@ class ActionButtons extends ConsumerWidget {
       shadowColor = SlotTheme.playGreenShadow;
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: _ActionButton(
-            label: 'COBRAR',
-            color: SlotTheme.cashoutYellow,
-            shadowColor: SlotTheme.cashoutYellowShadow,
-            textColor: const Color(0xFF1F2937),
-            enabled: cashoutEnabled,
-            onTap: ctrl.cashout,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _ActionButton(
-            label: label,
-            color: color,
-            shadowColor: shadowColor,
-            textColor: Colors.white,
-            enabled: playEnabled,
-            onTap: ctrl.playOrDouble,
-          ),
-        ),
-      ],
+    final Widget cobrarBtn = Expanded(
+      child: _ActionButton(
+        label: 'COBRAR',
+        color: SlotTheme.cashoutYellow,
+        shadowColor: SlotTheme.cashoutYellowShadow,
+        textColor: const Color(0xFF1F2937),
+        enabled: cashoutEnabled,
+        onTap: cashoutAction,
+      ),
     );
+
+    final Widget playBtn = Expanded(
+      child: _ActionButton(
+        label: label,
+        color: color,
+        shadowColor: shadowColor,
+        textColor: Colors.white,
+        enabled: playEnabled,
+        onTap: ctrl.playOrDouble,
+      ),
+    );
+
+    // Al ganar: DOBLAR (izq) | COBRAR (der)
+    // Normal:   COBRAR (izq) | JUGAR/REPETIR (der)
+    final List<Widget> buttons = isDouble
+        ? [playBtn, const SizedBox(width: 12), cobrarBtn]
+        : [cobrarBtn, const SizedBox(width: 12), playBtn];
+
+    return Row(children: buttons);
   }
 }
 
