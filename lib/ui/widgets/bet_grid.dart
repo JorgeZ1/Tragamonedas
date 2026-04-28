@@ -23,16 +23,17 @@ class BetGrid extends ConsumerWidget {
           'APUESTAS',
           style: SlotTheme.gameFont(size: 10, color: SlotTheme.goldLight),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
+        // 9 botones en 2 filas: 5 arriba, 4 abajo (centrados con un hueco final)
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: kBetTypes.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+            crossAxisCount: 5,
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
-            childAspectRatio: 0.95,
+            childAspectRatio: 0.85,
           ),
           itemBuilder: (context, i) {
             final type = kBetTypes[i];

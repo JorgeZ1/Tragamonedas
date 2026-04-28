@@ -40,7 +40,7 @@ class SlotScreen extends ConsumerWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500),
@@ -58,7 +58,7 @@ class SlotScreen extends ConsumerWidget {
                       ),
                       child: const HeaderPanel(),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     // Board
                     Container(
                       decoration: BoxDecoration(
@@ -67,14 +67,14 @@ class SlotScreen extends ConsumerWidget {
                             Border.all(color: SlotTheme.goldLight, width: 1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      padding: const EdgeInsets.all(4),
-                      height: 220,
+                      padding: const EdgeInsets.all(3),
+                      height: 280,
                       child: const SlotBoard(),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     // Bets
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: SlotTheme.frameDark,
                         border:
@@ -83,7 +83,7 @@ class SlotScreen extends ConsumerWidget {
                       ),
                       child: const BetGrid(),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     // Actions
                     Container(
                       padding: const EdgeInsets.all(6),
@@ -95,12 +95,14 @@ class SlotScreen extends ConsumerWidget {
                       ),
                       child: const ActionButtons(),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     // Debug info
                     Container(
                       padding: const EdgeInsets.all(6),
-                      color: Colors.grey[800],
-                      borderRadius: BorderRadius.circular(6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,

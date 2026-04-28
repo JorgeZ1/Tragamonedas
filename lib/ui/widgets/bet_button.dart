@@ -34,81 +34,100 @@ class BetButton extends StatelessWidget {
         ? SlotTheme.betSelectedShadow
         : (disabled ? const Color(0xFF4A5568) : SlotTheme.betBlueShadow);
 
-    final yOffset = selected ? 4.0 : 0.0;
+    final yOffset = selected ? 3.0 : 0.0;
 
     return GestureDetector(
       onTap: disabled ? null : onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 80),
-            transform: Matrix4.translationValues(0, yOffset, 0),
-            decoration: BoxDecoration(
-              color: baseColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isBetting
-                    ? SlotTheme.goldLight
-                    : SlotTheme.betBlueLight,
-                width: isBetting ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: shadowColor,
-                  offset: Offset(0, 6 - yOffset),
-                  blurRadius: 0,
+      child: MouseRegion(
+        cursor: disabled ? SystemMouseCursors.forbidden : SystemMouseCursors.click,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              transform: Matrix4.translationValues(0, yOffset, 0),
+              decoration: BoxDecoration(
+                color: baseColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isBetting
+                      ? SlotTheme.goldLight
+                      : SlotTheme.betBlueLight,
+                  width: isBetting ? 2 : 1,
                 ),
-                if (isBetting)
-                  const BoxShadow(
-                      color: Color(0xCCFDE047),
-                      blurRadius: 12,
-                      spreadRadius: 2),
-              ],
+                boxShadow: [
+                  // Sombra base (3D profundidad)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    offset: Offset(0, 8 - yOffset),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                  // Sombra inferior (efecto borde)
+                  BoxShadow(
+                    color: shadowColor.withValues(alpha: 0.8),
+                    offset: Offset(0, 4 - yOffset),
+                    blurRadius: 0,
+                  ),
+                  if (isBetting)
+                    const BoxShadow(
+                        color: Color(0xCCFDE047),
+                        blurRadius: 12,
+                        spreadRadius: 2),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              constraints: const BoxConstraints(minHeight: 60),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Icon(symbol: symbol),
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    child: Text(
+                      'x${symbol.prize}',
+                      style: SlotTheme.gameFont(
+                        size: 8,
+                        color: SlotTheme.goldLight,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _Icon(symbol: symbol),
-                const SizedBox(height: 2),
-                FittedBox(
+            if (count > 0)
+              Positioned(
+                top: -6,
+                right: -6,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x99000000),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
                   child: Text(
-                    'x${symbol.prize}',
-                    style: SlotTheme.gameFont(
-                      size: 8,
-                      color: SlotTheme.goldLight,
+                    '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          if (count > 0)
-            Positioned(
-              top: -6,
-              right: -6,
-              child: Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Text(
-                  '$count',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -122,23 +141,23 @@ class _Icon extends StatelessWidget {
   Widget build(BuildContext context) {
     if (symbol.type == 'bar') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         decoration: BoxDecoration(
           color: SymbolColors.barBg,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(3),
         ),
         child: Text(
           'BAR',
-          style: SlotTheme.gameFont(size: 14, color: Colors.white),
+          style: SlotTheme.gameFont(size: 10, color: Colors.white),
         ),
       );
     }
     if (symbol.type == 'seven') {
       return Text(
         '7',
-        style: SlotTheme.gameFont(size: 22, color: SymbolColors.seven),
+        style: SlotTheme.gameFont(size: 18, color: SymbolColors.seven),
       );
     }
-    return Text(symbol.display, style: const TextStyle(fontSize: 26));
+    return Text(symbol.display, style: const TextStyle(fontSize: 20));
   }
 }
