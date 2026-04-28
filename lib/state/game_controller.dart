@@ -162,12 +162,12 @@ class GameController extends StateNotifier<GameState> {
       eventWonSlots: const {},
     );
     _hideMessage();
+    soundService.startSpinLoop();
 
     final totalSteps = _engine.randomTotalSteps();
     await _runLightLoop(
       totalSteps: totalSteps,
       onStep: (step) {
-        soundService.play(SoundEffect.spin);
         final slotId = kLightPath[state.currentLightIndex];
         state = state.copyWith(activeSlotId: slotId);
         state = state.copyWith(
@@ -175,6 +175,7 @@ class GameController extends StateNotifier<GameState> {
         );
       },
     );
+    soundService.stopSpinLoop();
 
     await _resolveSpin(free: free);
   }
@@ -291,6 +292,7 @@ class GameController extends StateNotifier<GameState> {
     final totalSteps = _engine.randomSnakeSteps();
     final n = kLightPath.length;
 
+    soundService.startSpinLoop();
     await _runLightLoop(
       totalSteps: totalSteps,
       initialSpeed: 50,
@@ -311,6 +313,7 @@ class GameController extends StateNotifier<GameState> {
         );
       },
     );
+    soundService.stopSpinLoop();
 
     final finalHeadIndex = (state.currentLightIndex - 1 + n) % n;
     final partsIndices = _engine.snakePartsFromHead(finalHeadIndex);

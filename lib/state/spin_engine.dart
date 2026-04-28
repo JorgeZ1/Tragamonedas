@@ -48,7 +48,7 @@ class SpinEngine {
     required int totalSteps,
     int initialSpeed = 120,
     int topSpeed = 30,
-    int slowdownSteps = 15,
+    int slowdownSteps = 16,   // 16 pasos → ~1920 ms de frenado
   }) {
     int speed;
     if (currentStep < 10) {
@@ -62,7 +62,13 @@ class SpinEngine {
     return speed.clamp(20, 600);
   }
 
-  int randomTotalSteps() => 40 + _rng.nextInt(20);
+  /// Steps calibrated to match 'videoplayback (mp3cut.net) (1).wav' (5.652 s).
+  /// N=125, slowdownSteps=16:
+  ///   Accel  : ~750 ms  (pasos 0-9)
+  ///   Crucero: ~2970 ms (pasos 10-108)  → velocidad maxima
+  ///   Frenado: ~1920 ms (pasos 109-124) → empieza en ~3.72 s ("sonido 4")
+  ///   Total  :  5640 ms  Δ = -12 ms vs audio (5652 ms)
+  int randomTotalSteps() => 124 + _rng.nextInt(3); // 124-126 ≈ 5.61-5.67 s
 
   int randomSnakeSteps() => 60 + _rng.nextInt(20);
 
