@@ -6,12 +6,16 @@ class LedDisplay extends StatelessWidget {
   final int value;
   final int digits;
   final double height;
+  final Color onColor;
+  final Color offColor;
 
   const LedDisplay({
     super.key,
     required this.value,
     this.digits = 1,
     this.height = 22,
+    this.onColor = const Color(0xFFFF2A2A),
+    this.offColor = const Color(0x14FF2A2A),
   });
 
   @override
@@ -24,14 +28,18 @@ class LedDisplay extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF0A0000),
         borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: const Color(0xFF7F1D1D), width: 1),
+        border: Border.all(color: onColor.withValues(alpha: 0.3), width: 1),
         boxShadow: const [
           // Inner darkening
           BoxShadow(color: Color(0xCC000000), blurRadius: 1, offset: Offset(0, 1)),
         ],
       ),
       child: CustomPaint(
-        painter: _SevenSegPainter(text: str),
+        painter: _SevenSegPainter(
+          text: str,
+          onColor: onColor,
+          offColor: offColor,
+        ),
         child: const SizedBox.expand(),
       ),
     );
@@ -40,9 +48,8 @@ class LedDisplay extends StatelessWidget {
 
 class _SevenSegPainter extends CustomPainter {
   final String text;
-
-  static const _onColor = Color(0xFFFF2A2A);
-  static const _offColor = Color(0x14FF2A2A);
+  final Color onColor;
+  final Color offColor;
 
   // segment map per digit ['a','b','c','d','e','f','g']
   static const Map<String, List<int>> _segments = {
@@ -60,7 +67,7 @@ class _SevenSegPainter extends CustomPainter {
     ' ': [0, 0, 0, 0, 0, 0, 0],
   };
 
-  _SevenSegPainter({required this.text});
+  _SevenSegPainter({required this.text, required this.onColor, required this.offColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -90,9 +97,9 @@ class _SevenSegPainter extends CustomPainter {
     final midY = y + h / 2;
 
     final on = Paint()
-      ..color = _onColor
+      ..color = onColor
       ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 0.6);
-    final off = Paint()..color = _offColor;
+    final off = Paint()..color = offColor;
 
     // a — top horizontal
     _hSeg(c, x + pad + t, y + pad, innerW - t * 2, t, segs[0] == 1 ? on : off);
