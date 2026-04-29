@@ -141,7 +141,10 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
   @override
   Widget build(BuildContext context) {
     final disabled = !widget.enabled;
-    final yOffset  = _pressed && !disabled ? 6.0 : 0.0;
+    // Incrementamos masivamente el volumen frontal (bottomEdge = 16)
+    // Cuando se presiona, el botón viaja 12 píxeles completos hacia abajo!
+    final double yOffset = (_pressed && !disabled) ? 12.0 : 0.0;
+    final double bottomEdge = (_pressed && !disabled) ? 4.0 : 16.0;
 
     return Expanded(
       flex: widget.flex,
@@ -152,59 +155,112 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
           if (!disabled) widget.onTap();
         },
         onTapCancel: () => setState(() => _pressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 70),
-          transform: Matrix4.translationValues(0, yOffset, 0),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: disabled
-                  ? [
-                      widget.topColor.withValues(alpha: 0.45),
-                      widget.bottomColor.withValues(alpha: 0.45),
-                    ]
-                  : [widget.topColor, widget.bottomColor],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 1.2,
-            ),
-            boxShadow: disabled
-                ? []
-                : [
-                    BoxShadow(
-                      color: widget.shadowColor,
-                      offset: Offset(0, 6 - yOffset),
-                      blurRadius: 0,
+        child: Container(
+          color: Colors.transparent,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          // Aquí aplicamos la matriz de transformación 3D real para inclinar
+          // el botón hacia atrás, dándole esa forma trapezoidal (más angosto arriba)
+          // que coincide exactamente con tu imagen POV.
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.002) // Factor de perspectiva POV
+              ..rotateX(-0.35),       // Inclinación hacia atrás (~20 grados)
+            child: Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 70),
+                  top: yOffset,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    // La base blanca con gradiente para dar sombra cilíndrica/volumen
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: disabled
+                            ? [
+                                const Color(0xFF9CA3AF), // Gris más oscuro si está deshabilitado
+                                const Color(0xFF6B7280),
+                              ]
+                            : [
+                                const Color(0xFFFFFFFF), // Luz arriba
+                                const Color(0xFF94A3B8), // Sombra en la base
+                              ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: disabled ? null : const [
+                        BoxShadow(
+                          color: Color(0x99000000),
+                          offset: Offset(0, 8),
+                          blurRadius: 6,
+                        )
+                      ]
                     ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      offset: Offset(0, 7 - yOffset),
-                      blurRadius: 2,
+                    padding: EdgeInsets.only(
+                      top: 2,
+                      left: 3,
+                      right: 3,
+                      bottom: bottomEdge,
                     ),
-                  ],
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          alignment: Alignment.center,
-          child: widget.icon != null
-              ? Icon(widget.icon, color: widget.textColor, size: 26)
-              : FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    widget.label!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: widget.textColor,
-                      letterSpacing: 0.6,
-                      shadows: const [
-                        Shadow(color: Color(0x66000000), offset: Offset(0, 1)),
-                      ],
+                    child: Container(
+                      // La cara superior metálica/color
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: disabled
+                              ? [
+                                  Color.lerp(const Color(0xFF4B5563), widget.topColor, 0.3)!,
+                                  Color.lerp(const Color(0xFF4B5563), widget.topColor, 0.3)!,
+                                  Color.lerp(const Color(0xFF374151), widget.bottomColor, 0.3)!,
+                                  Color.lerp(const Color(0xFF374151), widget.bottomColor, 0.3)!,
+                                ]
+                              : [
+                                  Color.lerp(Colors.white, widget.topColor, 0.3)!,
+                                  widget.topColor,
+                                  widget.bottomColor,
+                                  Color.lerp(Colors.black, widget.bottomColor, 0.3)!,
+                                ],
+                          stops: const [0.0, 0.3, 0.7, 1.0],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: disabled 
+                              ? Colors.white.withValues(alpha: 0.2) 
+                              : Colors.white.withValues(alpha: 0.8),
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: widget.icon != null
+                          ? Icon(widget.icon, color: disabled ? Colors.white54 : widget.textColor, size: 28)
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Text(
+                                  widget.label!,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: disabled ? Colors.white54 : widget.textColor,
+                                    letterSpacing: 0.8,
+                                    shadows: disabled ? null : const [
+                                      Shadow(color: Color(0x88000000), offset: Offset(0, 1)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -21,7 +21,7 @@ class CenterDisplay extends ConsumerWidget {
           // ── Background image ──────────────
           Image.asset(
             'assets/images/slot_center_bg.png',
-            fit: BoxFit.fill,
+            fit: BoxFit.cover,
           ),
 
           // ── Message overlay (Disabled per user request) ────────────

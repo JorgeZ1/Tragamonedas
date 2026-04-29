@@ -5,7 +5,6 @@ import '../../state/providers.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/bet_grid.dart';
 import '../widgets/header_panel.dart';
-import '../widgets/reward_button.dart';
 import '../widgets/slot_board.dart';
 import 'stats_screen.dart';
 
@@ -31,10 +30,6 @@ class SlotScreen extends ConsumerWidget {
 
                     // ── Header (Mexican-arcade style) ──────────────────
                     HeaderPanel(),
-                    SizedBox(height: 6),
-
-                    // ── Reward (kept as a slim banner) ─────────────────
-                    RewardButton(),
                     SizedBox(height: 6),
 
                     // ── Main board (7×7) ───────────────────────────────
