@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/symbols.dart';
@@ -159,96 +160,83 @@ class _ArcadeBetButtonState extends State<_ArcadeBetButton> {
 
   @override
   Widget build(BuildContext context) {
-    // A petición tuya: el botón baja físicamente si lo estás tocando (_hold) 
-    // O si ya tiene una apuesta (widget.pressed). De esta forma se queda "sumido".
-    final physicalDown = (_hold || widget.pressed) && widget.enabled;
-    final double yOffset = physicalDown ? 6.0 : 0.0;
-    final double bottomEdge = physicalDown ? 2.0 : 8.0;
-
-    return GestureDetector(
-      onTapDown: (_) {
-        if (widget.enabled) setState(() => _hold = true);
-      },
-      onTapUp: (_) {
-        setState(() => _hold = false);
-        widget.onTap?.call();
-      },
-      onTapCancel: () => setState(() => _hold = false),
-      child: Container(
-        height: 32, // Un poco más alto para el volumen 3D
-        color: Colors.transparent,
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        // Aplicamos la misma perspectiva 3D POV para que se vea como trapecio
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.002)
-            ..rotateX(-0.35),
-          child: Stack(
-            children: [
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 60),
-                top: yOffset,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  // Base 3D blanca/gris
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFFFFFFFF),
-                        Color(0xFF94A3B8),
+    // Disabled → mismos colores, solo atenuados (NO parece "botón presionado").
+    return Opacity(
+      opacity: widget.enabled ? 1.0 : 0.52,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          setState(() => _hold = true);
+          if (widget.enabled) {
+            HapticFeedback.selectionClick();
+            widget.onTap?.call();
+          } else {
+            HapticFeedback.lightImpact();
+          }
+        },
+        onTapUp:     (_) => setState(() => _hold = false),
+        onTapCancel: ()  => setState(() => _hold = false),
+        child: Container(
+          height: 32,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          // Transform(rotateX) da la forma trapezoidal / perspectiva POV
+          // que da el aspecto 3D del botón visto desde arriba.
+          // NOTA: el Transform va fuera del AnimatedContainer. Lo que
+          // cambia con la animación es el padding-bottom (no la posición),
+          // y AnimatedContainer anima el padding internamente — correctamente
+          // incluso cuando el widget está dentro de un Transform.
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.002)  // factor de perspectiva POV
+              ..rotateX(-0.35),        // inclinación ~20° (vista desde arriba)
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 60),
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                // Cuerpo exterior del botón (base gris/blanca)
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFFFFFFF), Color(0xFF94A3B8)],
+                ),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: _hold || !widget.enabled
+                    ? null
+                    : const [
+                        BoxShadow(
+                          color: Color(0x77000000),
+                          offset: Offset(0, 5),
+                          blurRadius: 4,
+                        ),
                       ],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: !widget.enabled ? null : const [
-                      BoxShadow(
-                        color: Color(0x77000000),
-                        offset: Offset(0, 5),
-                        blurRadius: 4,
-                      )
-                    ]
+              ),
+              // padding-bottom crea el "pedestal" visible debajo de la cara.
+              // UP  → bottom: 8  → cara elevada, pedestal expuesto abajo
+              // DOWN → bottom: 1  → cara hunde, pedestal casi invisible
+              padding: EdgeInsets.only(
+                top: 1, left: 2, right: 2,
+                bottom: _hold ? 1.0 : 8.0,
+              ),
+              child: Container(
+                // Cara superior del botón (la parte que "baja")
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFFFFFFF),
+                      Color(0xFFF3F4F6),
+                      Color(0xFFE5E7EB),
+                      Color(0xFFD1D5DB),
+                    ],
+                    stops: [0.0, 0.3, 0.7, 1.0],
                   ),
-                  padding: EdgeInsets.only(
-                    top: 1,
-                    left: 2,
-                    right: 2,
-                    bottom: bottomEdge,
-                  ),
-                  child: Container(
-                    // Cara superior del botón (sin ningún punto rojo o gris)
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: widget.enabled
-                            ? const [
-                                Color(0xFFFFFFFF),
-                                Color(0xFFF3F4F6),
-                                Color(0xFFE5E7EB),
-                                Color(0xFFD1D5DB),
-                              ]
-                            : const [
-                                Color(0xFFE5E7EB),
-                                Color(0xFFD1D5DB),
-                                Color(0xFF9CA3AF),
-                                Color(0xFF9CA3AF), // Añadido 4to color para igualar longitud
-                              ],
-                        stops: const [0.0, 0.3, 0.7, 1.0], // Aseguramos paridad en la animación
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 1.0,
-                      ),
-                    ),
-                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white, width: 1.0),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

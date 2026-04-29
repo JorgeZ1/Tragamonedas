@@ -6,7 +6,6 @@ import '../widgets/action_buttons.dart';
 import '../widgets/bet_grid.dart';
 import '../widgets/header_panel.dart';
 import '../widgets/slot_board.dart';
-import 'stats_screen.dart';
 
 class SlotScreen extends ConsumerWidget {
   const SlotScreen({super.key});

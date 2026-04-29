@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/game_state.dart';
@@ -141,19 +142,29 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
   @override
   Widget build(BuildContext context) {
     final disabled = !widget.enabled;
-    // Incrementamos masivamente el volumen frontal (bottomEdge = 16)
-    // Cuando se presiona, el botón viaja 12 píxeles completos hacia abajo!
-    final double yOffset = (_pressed && !disabled) ? 12.0 : 0.0;
-    final double bottomEdge = (_pressed && !disabled) ? 4.0 : 16.0;
+    // Un botón mecánico baja físicamente al presionarlo, independientemente
+    // de si el sistema electrónico lo ignora por estar deshabilitado.
+    final physicalDown = _pressed;
+    final double yOffset = physicalDown ? 12.0 : 0.0;
+    final double bottomEdge = physicalDown ? 4.0 : 16.0;
 
     return Expanded(
       flex: widget.flex,
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) {
-          setState(() => _pressed = false);
-          if (!disabled) widget.onTap();
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          setState(() => _pressed = true); // Baja físicamente
+          if (!disabled) {
+            // Botones grandes usan impacto medio (COLLECT, START) para
+            // distinguirse claramente del "clic ligero" de los botones de apuesta.
+            HapticFeedback.mediumImpact();
+            widget.onTap();
+          } else {
+            // Botón bloqueado: vibración leve — el botón se hunde pero no hace nada.
+            HapticFeedback.lightImpact();
+          }
         },
+        onTapUp: (_) => setState(() => _pressed = false), // Sube
         onTapCancel: () => setState(() => _pressed = false),
         child: Container(
           color: Colors.transparent,
