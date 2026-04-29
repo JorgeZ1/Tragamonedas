@@ -18,28 +18,6 @@ class SlotScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF3DA5C9),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1F6F8B),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'TRAGAMONEDAS',
-          style: TextStyle(
-            color: Color(0xFFFBBF24),
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            letterSpacing: 1.5,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart, color: Color(0xFFFBBF24)),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const StatsScreen()),
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(

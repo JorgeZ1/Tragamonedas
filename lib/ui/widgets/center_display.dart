@@ -18,19 +18,19 @@ class CenterDisplay extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Background image (Mario-style landscape) ──────────────
+          // ── Background image ──────────────
           Image.asset(
             'assets/images/slot_center_bg.png',
-            fit: BoxFit.cover,
+            fit: BoxFit.fill,
           ),
 
-          // ── Message overlay ────────────────────────────────────────
-          if (s.messageTitle != null && !s.doublingActive)
-            _MessageOverlay(
-              symbol: s.messageSymbol,
-              title: s.messageTitle!,
-              details: s.messageDetails,
-            ),
+          // ── Message overlay (Disabled per user request) ────────────
+          // if (s.messageTitle != null && !s.doublingActive)
+          //   _MessageOverlay(
+          //     symbol: s.messageSymbol,
+          //     title: s.messageTitle!,
+          //     details: s.messageDetails,
+          //   ),
 
           // ── Doubling overlay ───────────────────────────────────────
           if (s.doublingActive) const DoubleUpOverlay(),

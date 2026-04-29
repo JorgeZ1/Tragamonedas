@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/providers.dart';
+import '../screens/stats_screen.dart';
 
 /// Full Mexican-arcade header. Three rows:
 ///   1) level + name input + Mina/Jackpot/Clásico stack
@@ -82,11 +83,29 @@ class _Row1 extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                _SmallButton(
-                  label: 'SUBIR\nNIVEL',
-                  bg: Colors.black,
-                  fg: Colors.white,
-                  onTap: () => _soon(context),
+                Row(
+                  children: [
+                    _SmallButton(
+                      label: 'SUBIR\nNIVEL',
+                      bg: Colors.black,
+                      fg: Colors.white,
+                      onTap: () => _soon(context),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const StatsScreen()),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1F6F8B),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Icon(Icons.bar_chart, color: Color(0xFFFBBF24), size: 16),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -387,16 +406,24 @@ class _Row2Ads extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          // AD 2: $100 + 3 SPIN AD
+          // AD 2: Gift box (compact)
           Expanded(
-            flex: 4,
-            child: _AdBanner(
-              parts: const [
-                _AdPart(text: '100', leading: '\$', bg: Color(0xFFFBBF24)),
-                _AdPart(text: '3', leading: 'SPIN', bg: Color(0xFFDC2626)),
-                _AdPart(text: 'AD', leading: '', bg: Color(0xFF374151)),
-              ],
+            flex: 2,
+            child: GestureDetector(
               onTap: () => _soon(context),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFEC4899), Color(0xFFBE185D)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF831843), width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.card_giftcard, color: Colors.white, size: 20),
+              ),
             ),
           ),
         ],

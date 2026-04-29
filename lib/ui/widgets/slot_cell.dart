@@ -36,16 +36,27 @@ class _SlotCellState extends State<SlotCell>
   @override
   Widget build(BuildContext context) {
     final isWinner = widget.visual == SlotVisualState.winner;
+    
+    if (isWinner) {
+      return AnimatedBuilder(
+        animation: _pulse,
+        builder: (context, _) => _buildCell(context),
+      );
+    }
+    return _buildCell(context);
+  }
+
+  Widget _buildCell(BuildContext context) {
+    final isWinner = widget.visual == SlotVisualState.winner;
     final isActive = widget.visual == SlotVisualState.active;
     final isDeactivated = widget.visual == SlotVisualState.deactivated;
 
     // Border color
     Color borderColor;
     if (isWinner) {
-      borderColor = Color.lerp(
-          const Color(0xFFFBBF24), const Color(0xFFEF4444), _pulse.value)!;
+      borderColor = Color.lerp(Colors.redAccent, Colors.black, _pulse.value)!;
     } else if (isActive) {
-      borderColor = const Color(0xFFFBBF24);
+      borderColor = Colors.redAccent; // The user wants the spin path marked red
     } else {
       borderColor = Colors.black; // very sharp black line
     }
@@ -55,23 +66,25 @@ class _SlotCellState extends State<SlotCell>
     if (isDeactivated) {
       bgColor = const Color(0xFF6B7280);
     } else if (isWinner) {
-      bgColor = Color.lerp(Colors.white, const Color(0xFFFEF9C3), _pulse.value)!;
+      bgColor = Color.lerp(Colors.red, Colors.white, _pulse.value)!;
     } else if (widget.visual == SlotVisualState.eventWon) {
       bgColor = const Color(0xFFD1FAE5);
+    } else if (isActive) {
+      bgColor = Colors.red; // highly saturated red background for active cell
     } else {
       bgColor = Colors.white;
     }
 
-    Widget cell = AnimatedContainer(
+    return AnimatedContainer(
       duration: const Duration(milliseconds: 100),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: borderColor, width: isActive || isWinner ? 2 : 1),
+        border: Border.all(color: borderColor, width: isActive || isWinner ? 3 : 1),
         boxShadow: isActive
-            ? [BoxShadow(color: const Color(0xFFFBBF24).withValues(alpha: 0.6), blurRadius: 6)]
+            ? [BoxShadow(color: Colors.redAccent.withValues(alpha: 0.8), blurRadius: 8, spreadRadius: 2)]
             : isWinner
-                ? [BoxShadow(color: const Color(0xFFFBBF24).withValues(alpha: 0.8 * _pulse.value), blurRadius: 8, spreadRadius: 1)]
+                ? [BoxShadow(color: Colors.redAccent.withValues(alpha: 0.8 * (1.0 - _pulse.value)), blurRadius: 8, spreadRadius: 2)]
                 : null,
       ),
       alignment: Alignment.center,
@@ -81,12 +94,6 @@ class _SlotCellState extends State<SlotCell>
         child: _SymbolDisplay(symbol: widget.symbol),
       ),
     );
-
-    if (isWinner) {
-      cell = AnimatedBuilder(animation: _pulse, builder: (_, __) => cell);
-    }
-
-    return cell;
   }
 }
 
